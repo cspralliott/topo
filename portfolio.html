@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Portfolio · Topo Alpha Engine</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#060d16;color:#e0e0e0;font-family:'IBM Plex Mono',monospace;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#0a1420}
+::-webkit-scrollbar-thumb{background:#0e2030;border-radius:2px}
+
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+
+.spin{animation:spin 1.8s linear infinite;display:inline-block}
+.fade-in{animation:fadeIn 0.35s ease forwards}
+
+#loading{position:fixed;inset:0;background:#060d16;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:100}
+#loading.hidden{display:none}
+
+/* ── Nav ───────────────────────────────────────────────────────── */
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:#070d16;border-bottom:1px solid #0e2030}
+.topnav-brand{font-size:10px;font-weight:800;color:#fff;letter-spacing:3px}
+.topnav-links{display:flex;gap:4px}
+.topnav-link{font-size:9px;letter-spacing:2px;padding:5px 14px;border-radius:4px;text-decoration:none;color:#2a4050;border:1px solid transparent;transition:all 0.2s}
+.topnav-link:hover{color:#00e5ff;border-color:#0e2030}
+.topnav-link.active{color:#fff;background:#0a1420;border-color:#0e2030}
+
+/* ── Layout ────────────────────────────────────────────────────── */
+#app{padding:20px 18px}
+
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:20px;font-weight:800;color:#fff;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+.always-on{display:flex;align-items:center;gap:6px;font-size:8px;letter-spacing:2px;font-weight:700;color:#00e676;background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.25);border-radius:4px;padding:4px 10px}
+.always-on-dot{width:7px;height:7px;border-radius:50%;background:#00e676;animation:blink 1.4s ease infinite;flex-shrink:0}
+
+.updated-label{font-size:8px;color:#1e3040}
+
+/* ── Stat cards ────────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat-card{background:#0a1420;border:1px solid #0e2030;border-radius:6px;padding:14px}
+.stat-label{font-size:8px;color:#1e3040;letter-spacing:2px;margin-bottom:8px}
+.stat-val{font-size:22px;font-weight:800;line-height:1}
+.stat-sub{font-size:9px;margin-top:4px;color:#2a4050}
+.up{color:#00e676}.down{color:#ff1744}.neutral{color:#ffab40}
+
+/* ── Panels ────────────────────────────────────────────────────── */
+.panel{background:#0a1420;border:1px solid #0e2030;border-radius:8px;padding:16px;margin-bottom:12px}
+.panel-title{font-size:9px;letter-spacing:3px;color:#2a4050;margin-bottom:14px}
+
+/* ── Positions table ───────────────────────────────────────────── */
+.pos-table{width:100%;border-collapse:collapse}
+.pos-table th{font-size:8px;color:#1e3040;letter-spacing:2px;text-align:right;padding:0 8px 10px;font-weight:400;border-bottom:1px solid #0d1a25}
+.pos-table th:first-child{text-align:left}
+.pos-table td{font-size:11px;padding:8px;text-align:right;border-bottom:1px solid #080f18;vertical-align:middle}
+.pos-table td:first-child{text-align:left}
+.pos-table tr:last-child td{border-bottom:none}
+.pos-table tr:hover td{background:rgba(255,255,255,0.01)}
+.pos-ticker{font-size:13px;font-weight:800;color:#fff}
+.pos-bar-wrap{display:inline-block;width:60px;height:4px;background:#0d1520;border-radius:2px;vertical-align:middle;margin-left:6px;overflow:hidden}
+.pos-bar{height:100%;border-radius:2px}
+.pos-empty{font-size:9px;color:#1e3040;letter-spacing:2px;padding:20px 0;text-align:center}
+
+/* ── Trade log ─────────────────────────────────────────────────── */
+.trade-log{display:flex;flex-direction:column;gap:0}
+.trade-row{display:grid;grid-template-columns:70px 50px 60px 1fr 80px 90px;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid #080f18;font-size:10px}
+.trade-row:last-child{border-bottom:none}
+.trade-header{font-size:8px;color:#1a2a35;letter-spacing:2px;padding:0 4px 8px;border-bottom:1px solid #0d1a25;display:grid;grid-template-columns:70px 50px 60px 1fr 80px 90px;gap:8px}
+.trade-action{font-size:8px;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:3px;text-align:center}
+.trade-action.BUY{color:#00e676;background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.2)}
+.trade-action.EXIT{color:#ff1744;background:rgba(255,23,68,0.1);border:1px solid rgba(255,23,68,0.2)}
+.trade-action.TRIM{color:#ffab40;background:rgba(255,171,64,0.08);border:1px solid rgba(255,171,64,0.2)}
+.trade-ticker-col{font-weight:700;color:#e0e0e0}
+.trade-empty{font-size:9px;color:#1e3040;letter-spacing:2px;padding:20px 0;text-align:center}
+
+/* ── Bottom grid ───────────────────────────────────────────────── */
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:800px){.bottom-grid{grid-template-columns:1fr}}
+
+/* ── Allocation bar ────────────────────────────────────────────── */
+.alloc-bar-wrap{margin-top:10px}
+.alloc-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.alloc-label{font-size:8px;color:#2a4050;width:60px;flex-shrink:0}
+.alloc-track{flex:1;height:10px;background:#080f18;border-radius:3px;overflow:hidden}
+.alloc-fill{height:100%;border-radius:3px;transition:width 0.6s ease}
+.alloc-val{font-size:9px;width:50px;text-align:right}
+
+.footer{padding:10px 14px;background:#0a1420;border:1px solid #0e2030;border-radius:6px;font-size:8px;color:#1a2a35;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.footer span.warn{color:#3a1020}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spin" style="font-size:32px;color:#00e5ff">⬡</div>
+  <div style="font-size:12px;color:#00e5ff;letter-spacing:3px">LOADING PORTFOLIO</div>
+  <div style="font-size:9px;color:#2a4050">Running algo pipeline · executing trades...</div>
+</div>
+
+<nav class="topnav">
+  <span class="topnav-brand">⬡ TOPO ALPHA ENGINE</span>
+  <div class="topnav-links">
+    <a class="topnav-link" href="/">SIGNAL DASHBOARD</a>
+    <a class="topnav-link active" href="/portfolio">PORTFOLIO</a>
+  </div>
+</nav>
+
+<div id="app" style="display:none">
+
+  <div class="page-header">
+    <div>
+      <div style="font-size:9px;color:#00e5ff;letter-spacing:4px;margin-bottom:6px">AUTO-TRADING PORTFOLIO</div>
+      <div class="page-title">
+        $<span id="total-value">—</span>
+        <div class="always-on"><div class="always-on-dot"></div>ALWAYS ON</div>
+      </div>
+    </div>
+    <span class="updated-label" id="updated-label"></span>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">TOTAL P&amp;L</div>
+      <div class="stat-val" id="stat-pnl">—</div>
+      <div class="stat-sub" id="stat-pnl-pct">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">INVESTED</div>
+      <div class="stat-val" style="color:#00e5ff" id="stat-invested">—</div>
+      <div class="stat-sub" id="stat-invested-pct">— of portfolio</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">CASH RESERVE</div>
+      <div class="stat-val" style="color:#ffab40" id="stat-cash">—</div>
+      <div class="stat-sub" id="stat-cash-pct">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">OPEN POSITIONS</div>
+      <div class="stat-val" style="color:#e0e0e0" id="stat-positions">—</div>
+      <div class="stat-sub">algo long signals</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">OPEN POSITIONS</div>
+    <div id="positions-wrap">
+      <div class="pos-empty">Waiting for first pipeline run...</div>
+    </div>
+  </div>
+
+  <div class="bottom-grid">
+    <div class="panel">
+      <div class="panel-title">ALLOCATION</div>
+      <div class="alloc-bar-wrap">
+        <div class="alloc-row">
+          <span class="alloc-label">INVESTED</span>
+          <div class="alloc-track"><div class="alloc-fill" id="alloc-invested" style="background:#00e5ff;width:0%"></div></div>
+          <span class="alloc-val up" id="alloc-invested-val">—</span>
+        </div>
+        <div class="alloc-row">
+          <span class="alloc-label">CASH</span>
+          <div class="alloc-track"><div class="alloc-fill" id="alloc-cash" style="background:#ffab40;width:0%"></div></div>
+          <span class="alloc-val neutral" id="alloc-cash-val">—</span>
+        </div>
+        <div class="alloc-row">
+          <span class="alloc-label">P&amp;L</span>
+          <div class="alloc-track"><div class="alloc-fill" id="alloc-pnl" style="width:0%"></div></div>
+          <span class="alloc-val" id="alloc-pnl-val">—</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;font-size:8px;color:#1a2a35;line-height:1.9">
+        <div>STRATEGY · Market-neutral long-only</div>
+        <div>REBALANCE · Every 60s on pipeline signal</div>
+        <div>ALLOCATION · 80% long · 20% cash buffer</div>
+        <div>SIZING · Proportional to Laplacian residual</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">TRADE LOG</div>
+      <div id="trade-log-wrap">
+        <div class="trade-empty">No trades yet</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Auto-trading · algo rebalances every 60s · paper trading only</span>
+    <span class="warn">⚠ Not financial advice · Research only</span>
+  </div>
+
+</div>
+
+<script>
+const socket = io();
+
+socket.on("portfolio_update", d => render(d));
+
+function fmt(n, decimals=2) {
+  return Number(n).toLocaleString("en-US", {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
+}
+function fmtK(n) {
+  if (Math.abs(n) >= 1000) return (n/1000).toFixed(1) + "k";
+  return fmt(n);
+}
+
+function render(d) {
+  document.getElementById("loading").classList.add("hidden");
+  document.getElementById("app").style.display = "block";
+
+  const pnlUp = d.total_pnl >= 0;
+
+  document.getElementById("total-value").textContent = fmt(d.total_value, 0);
+  document.getElementById("updated-label").textContent = "Updated " + d.updated + " · auto ↻ 60s";
+
+  // Stats
+  const pnlEl = document.getElementById("stat-pnl");
+  pnlEl.textContent = (pnlUp ? "+$" : "-$") + fmt(Math.abs(d.total_pnl), 0);
+  pnlEl.className   = "stat-val " + (pnlUp ? "up" : "down");
+  document.getElementById("stat-pnl-pct").textContent =
+    (pnlUp ? "+" : "") + fmt(d.total_pnl_pct) + "% all time";
+
+  document.getElementById("stat-invested").textContent = "$" + fmt(d.positions_value, 0);
+  const invPct = d.total_value > 0 ? (d.positions_value / d.total_value * 100).toFixed(1) : 0;
+  document.getElementById("stat-invested-pct").textContent = invPct + "% of portfolio";
+
+  document.getElementById("stat-cash").textContent = "$" + fmt(d.cash, 0);
+  const cashPct = d.total_value > 0 ? (d.cash / d.total_value * 100).toFixed(1) : 0;
+  document.getElementById("stat-cash-pct").textContent = cashPct + "% reserve";
+
+  document.getElementById("stat-positions").textContent = d.num_positions;
+
+  // Allocation bars
+  document.getElementById("alloc-invested").style.width = invPct + "%";
+  document.getElementById("alloc-invested-val").textContent = invPct + "%";
+  document.getElementById("alloc-cash").style.width = cashPct + "%";
+  document.getElementById("alloc-cash-val").textContent = cashPct + "%";
+  const pnlPct = Math.min(Math.abs(d.total_pnl_pct), 100);
+  const pnlBar = document.getElementById("alloc-pnl");
+  pnlBar.style.width = pnlPct + "%";
+  pnlBar.style.background = pnlUp ? "#00e676" : "#ff1744";
+  const pnlValEl = document.getElementById("alloc-pnl-val");
+  pnlValEl.textContent = (pnlUp ? "+" : "") + fmt(d.total_pnl_pct) + "%";
+  pnlValEl.className = "alloc-val " + (pnlUp ? "up" : "down");
+
+  // Positions
+  renderPositions(d.positions, d.positions_value);
+
+  // Trades
+  renderTrades(d.trades);
+}
+
+function renderPositions(positions, totalInvested) {
+  const wrap = document.getElementById("positions-wrap");
+  if (!positions || positions.length === 0) {
+    wrap.innerHTML = '<div class="pos-empty">No open positions · waiting for signal</div>';
+    return;
+  }
+  const maxVal = Math.max(...positions.map(p => p.value));
+  const rows = positions.map(p => {
+    const up      = p.pnl >= 0;
+    const cls     = up ? "up" : "down";
+    const pnlStr  = (up ? "+" : "") + "$" + fmt(Math.abs(p.pnl));
+    const pctStr  = (up ? "+" : "") + fmt(p.pnl_pct) + "%";
+    const barW    = maxVal > 0 ? Math.round(p.value / maxVal * 100) : 0;
+    const barCol  = up ? "#00e676" : "#ff1744";
+    const wt      = totalInvested > 0 ? (p.value / totalInvested * 100).toFixed(1) : "0.0";
+    return `<tr class="fade-in">
+      <td>
+        <span class="pos-ticker">${p.ticker}</span>
+        <div class="pos-bar-wrap"><div class="pos-bar" style="width:${barW}%;background:${barCol}"></div></div>
+      </td>
+      <td style="color:#3a5060">${p.shares}</td>
+      <td style="color:#2a4050">$${fmt(p.entry_price)}</td>
+      <td>$${fmt(p.current_price)}</td>
+      <td>$${fmt(p.value, 0)}<br><span style="font-size:8px;color:#2a4050">${wt}% wt</span></td>
+      <td class="${cls}">${pnlStr}<br><span style="font-size:9px">${pctStr}</span></td>
+    </tr>`;
+  }).join("");
+
+  wrap.innerHTML = `
+    <table class="pos-table">
+      <thead><tr>
+        <th>TICKER</th>
+        <th>SHARES</th>
+        <th>ENTRY</th>
+        <th>CURRENT</th>
+        <th>VALUE</th>
+        <th>P&amp;L</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderTrades(trades) {
+  const wrap = document.getElementById("trade-log-wrap");
+  if (!trades || trades.length === 0) {
+    wrap.innerHTML = '<div class="trade-empty">No trades yet</div>';
+    return;
+  }
+  const rows = trades.slice(0, 40).map(t => `
+    <div class="trade-row fade-in">
+      <span style="color:#1e3040">${t.date}<br><span style="color:#2a4050">${t.time}</span></span>
+      <span class="trade-action ${t.action}">${t.action}</span>
+      <span class="trade-ticker-col">${t.ticker}</span>
+      <span style="color:#2a4050;font-size:9px">${t.reason}</span>
+      <span style="color:#3a5060">${t.shares} sh @ $${fmt(t.price)}</span>
+      <span style="color:#e0e0e0">$${fmt(t.value, 0)}</span>
+    </div>`).join("");
+
+  wrap.innerHTML = `
+    <div class="trade-header">
+      <span>DATE</span><span>ACTION</span><span>TICKER</span>
+      <span>REASON</span><span>SIZE</span><span>VALUE</span>
+    </div>
+    <div class="trade-log">${rows}</div>`;
+}
+</script>
+</body>
+</html>

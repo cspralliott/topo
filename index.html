@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Topological Alpha Engine</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#060d16;color:#e0e0e0;font-family:'IBM Plex Mono',monospace;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#0a1420}
+::-webkit-scrollbar-thumb{background:#0e2030;border-radius:2px}
+
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+.spin{animation:spin 1.8s linear infinite;display:inline-block}
+.fade-in{animation:fadeIn 0.35s ease forwards}
+.pulse{animation:pulse 2s ease infinite}
+
+#loading{
+  position:fixed;inset:0;background:#060d16;
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:16px;z-index:100;
+}
+#loading.hidden{display:none}
+
+#app{padding:20px 18px;
+  background-image:radial-gradient(ellipse at 0% 0%,rgba(0,40,70,0.2) 0%,transparent 50%);
+}
+
+.header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.header h1{font-size:20px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live-badge{font-size:8px;background:rgba(0,230,118,0.12);color:#00e676;border:1px solid rgba(0,230,118,0.3);border-radius:3px;padding:2px 8px;font-weight:700;letter-spacing:2px}
+.ws-badge{font-size:8px;padding:2px 8px;border-radius:3px;letter-spacing:2px;font-weight:700}
+.ws-connected{background:rgba(0,229,255,0.1);color:#00e5ff;border:1px solid rgba(0,229,255,0.3)}
+.ws-disconnected{background:rgba(255,23,68,0.1);color:#ff1744;border:1px solid rgba(255,23,68,0.3)}
+
+.header-label{font-size:9px;color:#00e5ff;letter-spacing:4px;margin-bottom:6px}
+.header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{padding:6px 14px;font-size:9px;background:transparent;border:1px solid #0e2030;color:#3a5060;border-radius:4px;cursor:pointer;font-family:'IBM Plex Mono',monospace;letter-spacing:2px;transition:all 0.2s}
+.btn:hover{border-color:#00e5ff;color:#00e5ff}
+.updated{font-size:8px;color:#1e3040}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.stat-card{background:#0a1420;border:1px solid #0e2030;border-radius:6px;padding:12px 14px}
+.stat-label{font-size:8px;color:#1e3040;letter-spacing:2px;margin-bottom:6px}
+.stat-val{font-size:22px;font-weight:800}
+
+.signals-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.panel{background:#0a1420;border:1px solid #0e2030;border-radius:8px;padding:16px}
+.panel-title{font-size:9px;letter-spacing:3px;margin-bottom:12px}
+.signals-list{display:flex;flex-direction:column;gap:8px}
+
+.signal-card{border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.signal-card.buy{background:rgba(0,230,118,0.06);border:1px solid rgba(0,230,118,0.25)}
+.signal-card.sell{background:rgba(255,23,68,0.06);border:1px solid rgba(255,23,68,0.25)}
+.signal-icon{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;flex-shrink:0}
+.signal-icon.buy{background:rgba(0,230,118,0.15);color:#00e676}
+.signal-icon.sell{background:rgba(255,23,68,0.15);color:#ff1744}
+.signal-ticker{font-size:15px;font-weight:800;color:#fff}
+.signal-tag{font-size:9px;font-weight:700;letter-spacing:2px;padding:2px 6px;border-radius:3px}
+.signal-tag.buy{color:#00e676;background:rgba(0,230,118,0.1)}
+.signal-tag.sell{color:#ff1744;background:rgba(255,23,68,0.1)}
+.signal-meta{font-size:10px;color:#445;margin-top:3px}
+.signal-price{font-size:14px;font-weight:700;color:#e0e0e0;text-align:right}
+.signal-change{font-size:10px;text-align:right}
+.up{color:#00e676}.down{color:#ff1744}
+
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.panel-sub{font-size:8px;color:#1e3040;letter-spacing:2px;margin-bottom:10px}
+
+.residual-row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.residual-ticker{width:36px;font-size:9px;color:#3a5060;text-align:right;flex-shrink:0}
+.residual-track{flex:1;height:8px;background:#0d1520;border-radius:2px;overflow:hidden;position:relative}
+.residual-bar{position:absolute;top:0;bottom:0;border-radius:2px}
+.residual-mid{position:absolute;top:0;bottom:0;left:50%;width:1px;background:#1a2535}
+.residual-val{width:56px;font-size:9px;flex-shrink:0}
+
+.corr-grid{display:grid;gap:1px}
+.corr-cell{aspect-ratio:1;cursor:crosshair}
+
+#corr-tooltip{
+  position:fixed;pointer-events:none;z-index:999;
+  background:#0a1420;border:1px solid #0e2030;border-radius:6px;
+  padding:8px 12px;font-size:10px;font-family:'IBM Plex Mono',monospace;
+  white-space:nowrap;opacity:0;transition:opacity 0.1s;box-shadow:0 4px 20px rgba(0,0,0,0.6);
+}
+#corr-tooltip.visible{opacity:1}
+#corr-tooltip .tt-pair{font-size:12px;font-weight:800;color:#fff;margin-bottom:4px}
+#corr-tooltip .tt-rho{font-size:11px;margin-bottom:2px}
+#corr-tooltip .tt-desc{font-size:9px;color:#2a4050;letter-spacing:1px}
+.legend{margin-top:10px;font-size:8px;color:#1e3040;display:flex;gap:12px}
+
+svg text{font-family:'IBM Plex Mono',monospace}
+
+.topo-arrow{background:transparent;border:1px solid #0e2030;color:#2a4050;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 9px;border-radius:3px;cursor:pointer;transition:all 0.2s;line-height:1.4}
+.topo-arrow:hover{border-color:#00e5ff;color:#00e5ff}
+.topo-view-indicator{font-size:8px;color:#1e3040;letter-spacing:1px}
+
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:#070d16;border-bottom:1px solid #0e2030;margin:-20px -18px 20px}
+.topnav-brand{font-size:10px;font-weight:800;color:#fff;letter-spacing:3px}
+.topnav-links{display:flex;gap:4px}
+.topnav-link{font-size:9px;letter-spacing:2px;padding:5px 14px;border-radius:4px;text-decoration:none;color:#2a4050;border:1px solid transparent;transition:all 0.2s}
+.topnav-link:hover{color:#00e5ff;border-color:#0e2030}
+.topnav-link.active{color:#fff;background:#0a1420;border-color:#0e2030}
+
+.footer{margin-top:12px;padding:10px 14px;background:#0a1420;border:1px solid #0e2030;border-radius:6px;font-size:8px;color:#1a2a35;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.footer span.warn{color:#3a1020}
+
+.regime{margin-top:10px;padding:8px 10px;background:#060d16;border-radius:4px;font-size:8px;color:#2a4050;line-height:1.7}
+
+#error-banner{display:none;padding:10px 16px;background:rgba(255,23,68,0.08);border:1px solid rgba(255,23,68,0.25);border-radius:6px;font-size:10px;color:#ff1744;margin-bottom:14px}
+
+/* ── Watchlist ─────────────────────────────────────────────────── */
+.watchlist-section{margin-bottom:12px}
+.watchlist-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.watchlist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.watchlist-empty{font-size:9px;color:#1e3040;letter-spacing:2px;padding:16px 0}
+
+.watch-card{background:#0a1420;border:1px solid #0e2030;border-radius:8px;padding:14px;position:relative;transition:border-color 0.2s}
+.watch-card.buy{border-color:rgba(0,230,118,0.2)}
+.watch-card.sell{border-color:rgba(255,23,68,0.2)}
+.watch-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.watch-ticker{font-size:18px;font-weight:800;color:#fff}
+.watch-price{font-size:13px;font-weight:700;color:#e0e0e0}
+.watch-change{font-size:10px;margin-top:1px}
+.watch-signal{font-size:9px;font-weight:700;letter-spacing:2px;padding:3px 8px;border-radius:3px;text-align:center}
+.watch-signal.buy{color:#00e676;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3)}
+.watch-signal.sell{color:#ff1744;background:rgba(255,23,68,0.12);border:1px solid rgba(255,23,68,0.3)}
+.watch-signal.neutral{color:#ffab40;background:rgba(255,171,64,0.08);border:1px solid rgba(255,171,64,0.2)}
+.watch-remove{position:absolute;top:10px;right:10px;background:transparent;border:none;color:#1e3040;cursor:pointer;font-size:12px;line-height:1;padding:2px 4px;font-family:'IBM Plex Mono',monospace;transition:color 0.2s}
+.watch-remove:hover{color:#ff1744}
+
+.watch-algo{display:flex;flex-direction:column;gap:6px}
+.watch-algo-row{display:flex;align-items:center;gap:8px}
+.watch-algo-label{font-size:8px;color:#2a4050;letter-spacing:2px;width:64px;flex-shrink:0;text-transform:uppercase}
+.watch-algo-val{font-size:9px;color:#3a5060}
+.watch-mini-bar{flex:1;height:6px;background:#0d1520;border-radius:2px;overflow:hidden;position:relative}
+.watch-mini-fill{position:absolute;top:0;bottom:0;border-radius:2px}
+.watch-mid{position:absolute;top:0;bottom:0;left:50%;width:1px;background:#1a2535}
+.watch-neighbors{display:flex;gap:5px;flex-wrap:wrap}
+.watch-neighbor-chip{font-size:8px;color:#2a5060;background:#070e18;border:1px solid #0e2030;border-radius:3px;padding:2px 6px}
+
+.watchlist-input{background:#070e18;border:1px solid #0e2030;color:#e0e0e0;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:5px 10px;border-radius:4px;width:90px;letter-spacing:2px;text-transform:uppercase;outline:none}
+.watchlist-input:focus{border-color:#00e5ff}
+.watch-not-in-pipeline{font-size:8px;color:#2a4050;letter-spacing:1px;margin-top:6px;padding:6px 0;border-top:1px solid #0a1830}
+</style>
+</head>
+<body>
+
+<div id="corr-tooltip">
+  <div class="tt-pair" id="tt-pair"></div>
+  <div class="tt-rho" id="tt-rho"></div>
+  <div class="tt-desc" id="tt-desc"></div>
+</div>
+
+<!-- Loading Screen -->
+<div id="loading">
+  <div class="spin" style="font-size:32px;color:#00e5ff">⬡</div>
+  <div style="font-size:12px;color:#00e5ff;letter-spacing:3px">RUNNING PIPELINE</div>
+  <div id="loading-msg" style="font-size:9px;color:#2a4050">Fetching yfinance data · Computing topology...</div>
+</div>
+
+<!-- Dashboard -->
+<div id="app" style="display:none">
+
+  <nav class="topnav">
+    <span class="topnav-brand">⬡ TOPO ALPHA ENGINE</span>
+    <div class="topnav-links">
+      <a class="topnav-link active" href="/">SIGNAL DASHBOARD</a>
+      <a class="topnav-link" href="/portfolio">PORTFOLIO</a>
+    </div>
+  </nav>
+
+  <div class="header">
+    <div>
+      <div class="header-label">TOPOLOGICAL ALPHA ENGINE · LIVE</div>
+      <h1>
+        Signal Dashboard
+        <span class="live-badge">LIVE</span>
+        <span id="ws-badge" class="ws-badge ws-disconnected">WS ✕</span>
+      </h1>
+    </div>
+    <div class="header-actions">
+      <span id="updated-label" class="updated"></span>
+      <button class="btn" onclick="requestRefresh()">↻ REFRESH</button>
+    </div>
+  </div>
+
+  <div id="error-banner"></div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">LONG SIGNALS</div>
+      <div class="stat-val up" id="stat-long">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">SHORT SIGNALS</div>
+      <div class="stat-val down" id="stat-short">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">TOPO FEATURES</div>
+      <div class="stat-val" style="color:#00e5ff" id="stat-topo">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">NET EXPOSURE</div>
+      <div class="stat-val" style="color:#ffab40">$0</div>
+    </div>
+  </div>
+
+  <div class="signals-grid">
+    <div class="panel">
+      <div class="panel-title up">▲ BUY SIGNALS</div>
+      <div class="signals-list" id="buy-signals"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title down">▼ SELL / SHORT SIGNALS</div>
+      <div class="signals-list" id="sell-signals"></div>
+    </div>
+  </div>
+
+  <!-- Watchlist -->
+  <div class="watchlist-section">
+    <div class="watchlist-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="panel-title" style="color:#2a4050;margin-bottom:0;letter-spacing:3px;font-size:9px">WATCHLIST</div>
+        <div id="watchlist-add-row" style="display:none;display:flex;gap:6px;align-items:center">
+          <input id="watchlist-input" class="watchlist-input" placeholder="TICKER" maxlength="6"
+            onkeydown="if(event.key==='Enter')confirmAddWatchlist()"
+            oninput="this.value=this.value.toUpperCase()"/>
+          <button class="btn" onclick="confirmAddWatchlist()">ADD</button>
+          <button class="btn" onclick="closeWatchlistInput()">✕</button>
+        </div>
+      </div>
+      <button class="btn" id="watchlist-add-btn" onclick="toggleWatchlistInput()">+ ADD TICKER</button>
+    </div>
+    <div class="watchlist-grid" id="watchlist-grid">
+      <div class="watchlist-empty">NO TICKERS WATCHED · CLICK + ADD TICKER</div>
+    </div>
+  </div>
+
+  <div class="bottom-grid">
+    <div class="panel">
+      <div class="panel-title" style="color:#2a4050">LAPLACIAN RESIDUALS</div>
+      <div id="residuals-panel"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title" style="color:#2a4050">CORRELATION MATRIX</div>
+      <div id="corr-panel"></div>
+      <div class="legend">
+        <span><span style="color:rgba(0,229,255,0.8)">■</span> positive ρ</span>
+        <span><span style="color:rgba(255,64,129,0.8)">■</span> negative ρ</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="panel-title" style="color:#2a4050;margin-bottom:0" id="topo-map-title">CORRELATION NETWORK</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="topo-view-indicator" id="topo-view-indicator">1 / 3</span>
+          <button class="topo-arrow" onclick="topoMapPrev()">&#8592;</button>
+          <button class="topo-arrow" onclick="topoMapNext()">&#8594;</button>
+        </div>
+      </div>
+      <div id="topo-map-panel" style="height:300px"></div>
+      <div class="regime" id="regime-panel"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Returns(20×60d) → Corr Matrix → Graph Laplacian L=D−W → Diffusion (I−αL)x → Residuals ε → Vietoris-Rips → H₀,H₁ → Market Neutral α</span>
+    <span class="warn">⚠ Not financial advice · Research only</span>
+  </div>
+
+</div>
+
+<script>
+// ── WebSocket Setup ──────────────────────────────────────────────────────────
+const socket = io();
+const badge  = document.getElementById("ws-badge");
+
+socket.on("connect", () => {
+  badge.textContent = "WS ✓";
+  badge.className   = "ws-badge ws-connected";
+});
+socket.on("disconnect", () => {
+  badge.textContent = "WS ✕";
+  badge.className   = "ws-badge ws-disconnected";
+});
+socket.on("pipeline_update", data => renderDashboard(data));
+socket.on("pipeline_error",  err  => showError(err.message));
+
+function requestRefresh() {
+  document.getElementById("loading-msg").textContent = "Refreshing pipeline...";
+  document.getElementById("loading").classList.remove("hidden");
+  document.getElementById("app").style.display = "none";
+  socket.emit("refresh");
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderDashboard(d) {
+  // Hide loader, show app
+  document.getElementById("loading").classList.add("hidden");
+  document.getElementById("app").style.display = "block";
+  document.getElementById("error-banner").style.display = "none";
+
+  const { tickers, corr, residuals, bars, signals, quotes, loop_count, regime, updated } = d;
+
+  // Stats
+  document.getElementById("stat-long").textContent  = signals.long.length;
+  document.getElementById("stat-short").textContent = signals.short.length;
+  document.getElementById("stat-topo").textContent  = bars.length;
+  document.getElementById("updated-label").textContent = `Updated ${updated} · auto ↻ 60s`;
+
+  // Signals
+  renderSignals("buy-signals",  signals.long,  "buy");
+  renderSignals("sell-signals", signals.short, "sell");
+
+  // Residuals
+  renderResiduals(tickers, residuals);
+
+  // Corr matrix
+  renderCorr(corr, tickers);
+
+  // Topology map
+  renderTopoMap(d);
+
+  // Regime
+  const rc = loop_count > 3 ? "#ff4081" : "#00e676";
+  document.getElementById("regime-panel").innerHTML =
+    `${loop_count} persistent loop(s) detected · Regime: <span style="color:${rc}">${regime}</span>`;
+}
+
+function renderSignals(containerId, list, type) {
+  const el  = document.getElementById(containerId);
+  const isBuy = type === "buy";
+  el.innerHTML = list.map(s => {
+    const q      = s.ticker ? {} : {};  // quotes come from data
+    return ``;
+  }).join("");
+  // We get quotes from the top-level data — re-render properly
+  el.innerHTML = "";
+}
+
+// Proper render with quotes passed from closure
+function renderSignals2(containerId, list, type, quotes) {
+  const el    = document.getElementById(containerId);
+  const isBuy = type === "buy";
+  el.innerHTML = list.map(s => {
+    const q      = quotes[s.ticker] || {price:0, change:0};
+    const chgCls = q.change >= 0 ? "up" : "down";
+    const chgStr = (q.change >= 0 ? "+" : "") + (q.change || 0).toFixed(2) + "%";
+    const priceStr = q.price ? "$" + q.price.toFixed(2) : "—";
+    return `
+      <div class="signal-card ${type} fade-in">
+        <div class="signal-icon ${type}">${isBuy ? "▲" : "▼"}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+            <span class="signal-ticker">${s.ticker}</span>
+            <span class="signal-tag ${type}">${s.action}</span>
+          </div>
+          <div class="signal-meta">wt ${(s.weight*100).toFixed(1)}% · ε ${(s.residual*100).toFixed(3)}%</div>
+        </div>
+        <div>
+          <div class="signal-price">${priceStr}</div>
+          <div class="signal-change ${chgCls}">${chgStr}</div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// Override with proper version using closure
+const _origRender = renderDashboard;
+function renderDashboard(d) {
+  document.getElementById("loading").classList.add("hidden");
+  document.getElementById("app").style.display = "block";
+  document.getElementById("error-banner").style.display = "none";
+
+  const { tickers, corr, residuals, bars, signals, quotes, loop_count, regime, updated } = d;
+
+  document.getElementById("stat-long").textContent  = signals.long.length;
+  document.getElementById("stat-short").textContent = signals.short.length;
+  document.getElementById("stat-topo").textContent  = bars.length;
+  document.getElementById("updated-label").textContent = `Updated ${updated} · auto ↻ 60s`;
+
+  renderSignals2("buy-signals",  signals.long,  "buy",  quotes);
+  renderSignals2("sell-signals", signals.short, "sell", quotes);
+  renderResiduals(tickers, residuals);
+  renderCorr(corr, tickers);
+  renderTopoMap(d);
+
+  const rc = loop_count > 3 ? "#ff4081" : "#00e676";
+  document.getElementById("regime-panel").innerHTML =
+    `${loop_count} persistent loop(s) · Regime: <span style="color:${rc}">${regime}</span>`;
+}
+
+function renderResiduals(tickers, residuals) {
+  const maxR = Math.max(...residuals.map(Math.abs), 0.001);
+  const el = document.getElementById("residuals-panel");
+  el.innerHTML = tickers.map((t, i) => {
+    const r    = residuals[i];
+    const pct  = (Math.abs(r) / maxR) * 50;
+    const isBuy = r < 0;
+    const col  = isBuy ? "#00e676" : "#ff1744";
+    const left = isBuy ? `${50 - pct}%` : "50%";
+    return `
+      <div class="residual-row">
+        <span class="residual-ticker">${t}</span>
+        <div class="residual-track">
+          <div class="residual-bar" style="left:${left};width:${pct}%;background:${col}"></div>
+          <div class="residual-mid"></div>
+        </div>
+        <span class="residual-val" style="color:${col}">${(r*100).toFixed(3)}%</span>
+      </div>`;
+  }).join("");
+}
+
+function renderCorr(corr, tickers) {
+  const n  = tickers.length;
+  const el = document.getElementById("corr-panel");
+  const cells = corr.flat().map((v, idx) => {
+    const row = Math.floor(idx / n);
+    const col = idx % n;
+    const a   = Math.abs(v) * 0.9;
+    const bg  = v > 0 ? `rgba(0,229,255,${a})` : `rgba(255,64,129,${a})`;
+    return `<div class="corr-cell" style="background:${bg}"
+      data-row="${row}" data-col="${col}" data-val="${v.toFixed(4)}"></div>`;
+  }).join("");
+  el.innerHTML = `<div class="corr-grid" style="grid-template-columns:repeat(${n},1fr)">${cells}</div>`;
+
+  const tt     = document.getElementById("corr-tooltip");
+  const ttPair = document.getElementById("tt-pair");
+  const ttRho  = document.getElementById("tt-rho");
+  const ttDesc = document.getElementById("tt-desc");
+
+  el.addEventListener("mousemove", e => {
+    const cell = e.target.closest(".corr-cell");
+    if (!cell) return;
+    const row = +cell.dataset.row, col = +cell.dataset.col;
+    const v   = +cell.dataset.val;
+    const ta  = tickers[row], tb = tickers[col];
+    const isSelf = row === col;
+
+    ttPair.textContent = isSelf ? ta : `${ta} × ${tb}`;
+    ttRho.style.color  = isSelf ? "#2a4050" : (v >= 0 ? "#00e5ff" : "#ff4081");
+    ttRho.textContent  = isSelf ? "diagonal (self)" : `ρ = ${v >= 0 ? "+" : ""}${v.toFixed(3)}`;
+    ttDesc.textContent = isSelf ? "" : (
+      Math.abs(v) > 0.7 ? (v > 0 ? "STRONGLY CORRELATED" : "STRONGLY INVERSE") :
+      Math.abs(v) > 0.4 ? (v > 0 ? "MODERATELY CORRELATED" : "MODERATELY INVERSE") :
+      Math.abs(v) > 0.2 ? "WEAKLY CORRELATED" : "NEAR INDEPENDENT"
+    );
+
+    const pad = 14;
+    const tx  = e.clientX + pad;
+    const ty  = e.clientY + pad;
+    const tw  = tt.offsetWidth  || 180;
+    const th  = tt.offsetHeight || 70;
+    tt.style.left = (tx + tw > window.innerWidth  ? e.clientX - tw - pad : tx) + "px";
+    tt.style.top  = (ty + th > window.innerHeight ? e.clientY - th - pad : ty) + "px";
+    tt.classList.add("visible");
+  });
+
+  el.addEventListener("mouseleave", () => tt.classList.remove("visible"));
+}
+
+// ── Weighted Topology Map ─────────────────────────────────────────────────────
+let _topoView    = 0;
+let _topoNodes   = null;
+let _topoSel     = null;   // selected node indices into tickers[]
+let _topoKey     = null;
+const _topoViews = ["CORRELATION NETWORK", "SIGNAL MAP", "RESIDUAL MAP"];
+
+function topoMapNext() {
+  _topoView = (_topoView + 1) % _topoViews.length;
+  if (window._lastPipelineData) renderTopoMap(window._lastPipelineData);
+}
+function topoMapPrev() {
+  _topoView = (_topoView - 1 + _topoViews.length) % _topoViews.length;
+  if (window._lastPipelineData) renderTopoMap(window._lastPipelineData);
+}
+
+function selectTopNodes(tickers, corr, residuals, signals, N) {
+  const longMap = {}, shortMap = {};
+  (signals.long  || []).forEach(s => longMap[s.ticker]  = s);
+  (signals.short || []).forEach(s => shortMap[s.ticker] = s);
+  const scored = tickers.map((t, i) => {
+    let deg = 0;
+    for (let j = 0; j < tickers.length; j++)
+      if (i !== j && Math.abs(corr[i][j]) > 0.45) deg += Math.abs(corr[i][j]);
+    const sig = longMap[t] || shortMap[t];
+    return { i, score: deg + (sig ? sig.weight * 6 : 0) + Math.abs(residuals[i]) * 18 };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, N).map(s => s.i);
+}
+
+function buildLayout(sel, tickers, corr) {
+  const n = sel.length;
+  const W = 520, H = 290, pad = 36;
+
+  // Seeded random — same layout every time for same tickers
+  let seed = sel.reduce((s, v) => s + v, 0);
+  const rand = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; };
+
+  // Init randomly near centre so force simulation shapes the clusters organically
+  const nodes = sel.map(() => ({
+    x: W/2 + (rand()-0.5) * W * 0.45,
+    y: H/2 + (rand()-0.5) * H * 0.45,
+    dx: 0, dy: 0,
+  }));
+
+  const edges = [];
+  for (let a = 0; a < n; a++)
+    for (let b = a+1; b < n; b++) {
+      const w = Math.abs(corr[sel[a]][sel[b]]);
+      if (w > 0.42) edges.push({i:a, j:b, w});
+    }
+
+  // Fruchterman-Reingold — stronger attraction so clusters pull tight
+  const k = Math.sqrt((W * H) / n) * 0.85;
+  for (let iter = 0; iter < 220; iter++) {
+    const temp = k * Math.max(0.02, 1 - iter / 220);
+    for (let i = 0; i < n; i++) { nodes[i].dx = 0; nodes[i].dy = 0; }
+
+    for (let i = 0; i < n; i++) {
+      for (let j = i+1; j < n; j++) {
+        const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+        const d  = Math.sqrt(dx*dx + dy*dy) + 0.1;
+        const f  = k*k / d;
+        const fx = dx/d*f, fy = dy/d*f;
+        nodes[i].dx += fx; nodes[i].dy += fy;
+        nodes[j].dx -= fx; nodes[j].dy -= fy;
+      }
+    }
+    for (const e of edges) {
+      const dx = nodes[e.j].x - nodes[e.i].x, dy = nodes[e.j].y - nodes[e.i].y;
+      const d  = Math.sqrt(dx*dx + dy*dy) + 0.1;
+      const f  = d / k * e.w * 2.2;
+      const fx = dx/d*f, fy = dy/d*f;
+      nodes[e.i].dx += fx; nodes[e.i].dy += fy;
+      nodes[e.j].dx -= fx; nodes[e.j].dy -= fy;
+    }
+    for (const nd of nodes) {
+      const d = Math.sqrt(nd.dx*nd.dx + nd.dy*nd.dy) + 0.1;
+      const s = Math.min(d, temp);
+      nd.x = Math.max(pad, Math.min(W-pad, nd.x + nd.dx/d*s));
+      nd.y = Math.max(pad, Math.min(H-pad, nd.y + nd.dy/d*s));
+    }
+  }
+
+  // Normalise to fill the canvas without hard edges
+  const xs = nodes.map(n=>n.x), ys = nodes.map(n=>n.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+  const scaleX = (W-2*pad)/(maxX-minX||1), scaleY = (H-2*pad)/(maxY-minY||1);
+  const scale  = Math.min(scaleX, scaleY) * 0.88;
+  const offX   = W/2 - ((minX+maxX)/2)*scale, offY = H/2 - ((minY+maxY)/2)*scale;
+  for (const nd of nodes) { nd.x = nd.x*scale+offX; nd.y = nd.y*scale+offY; }
+
+  return nodes;
+}
+
+function renderTopoMap(d) {
+  const { tickers, corr, residuals, recent, diffused, signals, quotes } = d;
+  const W = 520, H = 290, pad = 28;
+  const N = Math.min(tickers.length, 35);
+  const key = tickers.join();
+
+  if (!_topoNodes || _topoKey !== key) {
+    _topoKey   = key;
+    _topoSel   = selectTopNodes(tickers, corr, residuals, signals, N);
+    _topoNodes = buildLayout(_topoSel, tickers, corr);
+  }
+
+  document.getElementById("topo-map-title").textContent      = _topoViews[_topoView];
+  document.getElementById("topo-view-indicator").textContent = `${_topoView+1} / ${_topoViews.length}`;
+
+  const longMap = {}, shortMap = {};
+  (signals.long  || []).forEach(s => longMap[s.ticker]  = s);
+  (signals.short || []).forEach(s => shortMap[s.ticker] = s);
+  const maxRes = Math.max(...residuals.map(Math.abs), 0.001);
+
+  // Centroid for radial label placement
+  const cx = _topoNodes.reduce((s,n)=>s+n.x,0) / _topoNodes.length;
+  const cy = _topoNodes.reduce((s,n)=>s+n.y,0) / _topoNodes.length;
+
+  // Style nodes per view
+  const styled = _topoSel.map((ti, si) => {
+    const nd = _topoNodes[si];
+    const t  = tickers[ti], res = residuals[ti];
+    const isBuy = !!longMap[t], isSell = !!shortMap[t];
+    let fill, r, glow;
+    if (_topoView === 0) {
+      fill = isBuy ? "#00e676" : isSell ? "#ff1744" : "#2a3f52";
+      r    = 5.5 + (Math.abs(res)/maxRes) * 3.5;
+      glow = isBuy ? "rgba(0,230,118,0.28)" : isSell ? "rgba(255,23,68,0.28)" : null;
+    } else if (_topoView === 1) {
+      const sig = longMap[t] || shortMap[t];
+      fill = isBuy ? "#00e676" : isSell ? "#ff1744" : "#1e3040";
+      r    = sig ? 4.5 + sig.weight * 26 : 3.5;
+      glow = isBuy ? "rgba(0,230,118,0.28)" : isSell ? "rgba(255,23,68,0.28)" : null;
+    } else {
+      fill = res < 0 ? "#00e676" : "#ff1744";
+      r    = 4.5 + (Math.abs(res)/maxRes) * 5.5;
+      glow = res < 0 ? "rgba(0,230,118,0.28)" : "rgba(255,23,68,0.28)";
+    }
+    // Radial label offset — push label away from centroid
+    const angle  = Math.atan2(nd.y - cy, nd.x - cx);
+    const lDist  = r + 11;
+    const lx     = nd.x + Math.cos(angle) * lDist;
+    const ly     = nd.y + Math.sin(angle) * lDist + 3;
+    const anchor = Math.cos(angle) >= 0 ? "start" : "end";
+    return { nd, fill, r, glow, ticker: t, ti, si, lx, ly, anchor };
+  });
+
+  // Edges
+  const n = _topoSel.length;
+  const THRESH = 0.50;
+  const edgeSvg = [];
+  for (let a = 0; a < n; a++) {
+    for (let b = a+1; b < n; b++) {
+      const rho = corr[_topoSel[a]][_topoSel[b]];
+      if (Math.abs(rho) < THRESH) continue;
+      const op  = ((Math.abs(rho) - THRESH) / (1 - THRESH)) * 0.5;
+      const col = rho > 0 ? `rgba(180,220,255,${op.toFixed(2)})` : `rgba(255,120,160,${op.toFixed(2)})`;
+      edgeSvg.push(
+        `<line x1="${_topoNodes[a].x.toFixed(1)}" y1="${_topoNodes[a].y.toFixed(1)}"
+               x2="${_topoNodes[b].x.toFixed(1)}" y2="${_topoNodes[b].y.toFixed(1)}"
+               stroke="${col}" stroke-width="1"/>`
+      );
+    }
+  }
+
+  // Nodes + labels
+  const nodeSvg = styled.map(p => {
+    const glowEl = p.glow
+      ? `<circle cx="${p.nd.x.toFixed(1)}" cy="${p.nd.y.toFixed(1)}" r="${(p.r+3.5).toFixed(1)}" fill="${p.glow}"/>`
+      : "";
+    return `<g class="topo-node" data-si="${p.si}" style="cursor:crosshair">
+      ${glowEl}
+      <circle cx="${p.nd.x.toFixed(1)}" cy="${p.nd.y.toFixed(1)}" r="${p.r.toFixed(1)}"
+              fill="${p.fill}" opacity="0.92"/>
+      <text x="${p.lx.toFixed(1)}" y="${p.ly.toFixed(1)}"
+            fill="#9ab" font-size="8.5" font-weight="700"
+            text-anchor="${p.anchor}" dominant-baseline="middle">${p.ticker}</text>
+      <rect x="${(p.nd.x-p.r-12).toFixed(1)}" y="${(p.nd.y-p.r-10).toFixed(1)}"
+            width="${(p.r*2+24).toFixed(1)}" height="${(p.r*2+20).toFixed(1)}" fill="transparent"/>
+    </g>`;
+  }).join("");
+
+  const el = document.getElementById("topo-map-panel");
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%"
+      style="display:block;background:transparent">
+    <g opacity="0.85">${edgeSvg.join("")}</g>
+    <g>${nodeSvg}</g>
+  </svg>`;
+
+  // Tooltip (reuse corr-tooltip)
+  const tt     = document.getElementById("corr-tooltip");
+  const ttPair = document.getElementById("tt-pair");
+  const ttRho  = document.getElementById("tt-rho");
+  const ttDesc = document.getElementById("tt-desc");
+
+  el.querySelector("svg").addEventListener("mousemove", e => {
+    const nd = e.target.closest(".topo-node");
+    if (!nd) { tt.classList.remove("visible"); return; }
+    const si  = +nd.dataset.si;
+    const ti  = _topoSel[si];
+    const t   = tickers[ti];
+    const res = residuals[ti];
+    const q   = quotes[t] || {};
+    const sig = longMap[t] || shortMap[t];
+    const isBuy = !!longMap[t], isSell = !!shortMap[t];
+
+    ttPair.style.color = isBuy ? "#00e676" : isSell ? "#ff1744" : "#e0e0e0";
+    ttPair.textContent = `${t}${isBuy?" · BUY":isSell?" · SELL":" · NEUTRAL"}`;
+    ttRho.style.color  = "#e0e0e0";
+    ttRho.textContent  = `$${(q.price||0).toFixed(2)}  ${q.change>=0?"+":""}${(q.change||0).toFixed(2)}%  ε=${(res*100).toFixed(3)}%`;
+    ttDesc.textContent = sig
+      ? `wt ${(sig.weight*100).toFixed(1)}%  raw ${(recent[ti]*100).toFixed(3)}%  topo ${(diffused[ti]*100).toFixed(3)}%`
+      : `raw ${(recent[ti]*100).toFixed(3)}%  topo ${(diffused[ti]*100).toFixed(3)}%`;
+
+    const lpad=14, tw=tt.offsetWidth||240, th=tt.offsetHeight||70;
+    tt.style.left=(e.clientX+lpad+tw>innerWidth  ? e.clientX-tw-lpad : e.clientX+lpad)+"px";
+    tt.style.top =(e.clientY+lpad+th>innerHeight ? e.clientY-th-lpad : e.clientY+lpad)+"px";
+    tt.classList.add("visible");
+  });
+  el.querySelector("svg").addEventListener("mouseleave", () => tt.classList.remove("visible"));
+}
+
+function showError(msg) {
+  document.getElementById("loading").classList.add("hidden");
+  document.getElementById("app").style.display = "block";
+  const eb = document.getElementById("error-banner");
+  eb.style.display = "block";
+  eb.textContent = "⚠ Pipeline error: " + msg;
+}
+
+// ── Watchlist ─────────────────────────────────────────────────────────────────
+let _lastPipelineData = null;
+
+const _origRenderDashboard = renderDashboard;
+renderDashboard = function(d) {
+  _lastPipelineData = window._lastPipelineData = d;
+  _origRenderDashboard(d);
+  renderWatchlist(d);
+};
+
+function loadWatchlist() {
+  try { return JSON.parse(localStorage.getItem("topo_watchlist") || "[]"); }
+  catch(e) { return []; }
+}
+
+function saveWatchlist(list) {
+  localStorage.setItem("topo_watchlist", JSON.stringify(list));
+}
+
+function toggleWatchlistInput() {
+  const row = document.getElementById("watchlist-add-row");
+  const visible = row.style.display !== "none" && row.style.display !== "";
+  row.style.display = visible ? "none" : "flex";
+  if (!visible) setTimeout(() => document.getElementById("watchlist-input").focus(), 50);
+}
+
+function closeWatchlistInput() {
+  document.getElementById("watchlist-add-row").style.display = "none";
+  document.getElementById("watchlist-input").value = "";
+}
+
+function confirmAddWatchlist() {
+  const input = document.getElementById("watchlist-input");
+  const ticker = input.value.trim().toUpperCase();
+  if (!ticker) return;
+  const list = loadWatchlist();
+  if (!list.includes(ticker)) {
+    list.push(ticker);
+    saveWatchlist(list);
+  }
+  input.value = "";
+  closeWatchlistInput();
+  if (_lastPipelineData) renderWatchlist(_lastPipelineData);
+}
+
+function removeFromWatchlist(ticker) {
+  const list = loadWatchlist().filter(t => t !== ticker);
+  saveWatchlist(list);
+  if (_lastPipelineData) renderWatchlist(_lastPipelineData);
+}
+
+function renderWatchlist(d) {
+  const list = loadWatchlist();
+  const grid = document.getElementById("watchlist-grid");
+
+  if (list.length === 0) {
+    grid.innerHTML = `<div class="watchlist-empty">NO TICKERS WATCHED · CLICK + ADD TICKER</div>`;
+    return;
+  }
+
+  const { tickers, residuals, recent, diffused, signals, quotes, neighbors } = d;
+
+  const longMap  = {};
+  const shortMap = {};
+  (signals.long  || []).forEach(s => longMap[s.ticker]  = s);
+  (signals.short || []).forEach(s => shortMap[s.ticker] = s);
+
+  grid.innerHTML = list.map(ticker => {
+    const idx = tickers.indexOf(ticker);
+    const inPipeline = idx !== -1;
+    const q = quotes[ticker] || { price: 0, change: 0 };
+    const priceStr  = q.price  ? "$" + q.price.toFixed(2) : "—";
+    const chgStr    = q.change != null ? (q.change >= 0 ? "+" : "") + q.change.toFixed(2) + "%" : "—";
+    const chgCls    = q.change >= 0 ? "up" : "down";
+
+    let signalType = "neutral", signalLabel = "NEUTRAL";
+    if (longMap[ticker])  { signalType = "buy";  signalLabel = "▲ BUY"; }
+    if (shortMap[ticker]) { signalType = "sell"; signalLabel = "▼ SELL"; }
+
+    if (!inPipeline) {
+      return `
+        <div class="watch-card fade-in" style="opacity:0.7">
+          <button class="watch-remove" onclick="removeFromWatchlist('${ticker}')">✕</button>
+          <div class="watch-card-top">
+            <div>
+              <div class="watch-ticker">${ticker}</div>
+              <div class="watch-price">${priceStr}</div>
+              <div class="watch-change ${chgCls}">${chgStr}</div>
+            </div>
+            <div class="watch-signal neutral">NOT IN<br>PIPELINE</div>
+          </div>
+          <div class="watch-not-in-pipeline">Add "${ticker}" to TICKERS in server.py for full analysis</div>
+        </div>`;
+    }
+
+    const res      = residuals[idx];
+    const rec      = recent[idx];
+    const dif      = diffused[idx];
+    const maxRes   = Math.max(...residuals.map(Math.abs), 0.001);
+    const resPct   = (Math.abs(res) / maxRes) * 50;
+    const resCol   = res < 0 ? "#00e676" : "#ff1744";
+    const resLeft  = res < 0 ? `${50 - resPct}%` : "50%";
+
+    const sig = longMap[ticker] || shortMap[ticker];
+    const wtStr = sig ? (sig.weight * 100).toFixed(1) + "% of " + (longMap[ticker] ? "long" : "short") + " book" : "—";
+
+    const nbrs = (neighbors && neighbors[ticker]) || [];
+    const nbrChips = nbrs.map(n =>
+      `<span class="watch-neighbor-chip">${n.ticker} <span style="color:#1e4050">${n.rho > 0 ? "+" : ""}${n.rho.toFixed(2)}</span></span>`
+    ).join("");
+
+    const momentumPct = (rec * 100).toFixed(3);
+    const diffusedPct = (dif * 100).toFixed(3);
+    const momentumCol = rec >= 0 ? "#00e676" : "#ff1744";
+    const diffusedCol = dif >= 0 ? "#00e676" : "#ff1744";
+
+    return `
+      <div class="watch-card ${signalType} fade-in">
+        <button class="watch-remove" onclick="removeFromWatchlist('${ticker}')">✕</button>
+        <div class="watch-card-top">
+          <div>
+            <div class="watch-ticker">${ticker}</div>
+            <div class="watch-price">${priceStr}</div>
+            <div class="watch-change ${chgCls}">${chgStr}</div>
+          </div>
+          <div class="watch-signal ${signalType}">${signalLabel}</div>
+        </div>
+        <div class="watch-algo">
+          <div class="watch-algo-row">
+            <span class="watch-algo-label">RESIDUAL</span>
+            <div class="watch-mini-bar">
+              <div class="watch-mini-fill" style="left:${resLeft};width:${resPct}%;background:${resCol}"></div>
+              <div class="watch-mid"></div>
+            </div>
+            <span class="watch-algo-val" style="color:${resCol};width:60px;text-align:right">${(res * 100).toFixed(3)}%</span>
+          </div>
+          <div class="watch-algo-row">
+            <span class="watch-algo-label">WEIGHT</span>
+            <span class="watch-algo-val">${wtStr}</span>
+          </div>
+          <div class="watch-algo-row">
+            <span class="watch-algo-label">MOMENTUM</span>
+            <span class="watch-algo-val" style="color:${momentumCol}">${momentumPct}%</span>
+            <span class="watch-algo-val" style="color:#1e3040;margin-left:4px">raw</span>
+            <span class="watch-algo-val" style="color:${diffusedCol};margin-left:8px">${diffusedPct}%</span>
+            <span class="watch-algo-val" style="color:#1e3040;margin-left:4px">topo</span>
+          </div>
+          <div class="watch-algo-row">
+            <span class="watch-algo-label">PEERS</span>
+            <div class="watch-neighbors">${nbrChips}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+}
+</script>
+</body>
+</html>

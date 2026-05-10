@@ -1,0 +1,294 @@
+{
+  "cash": 20000.0,
+  "positions": {
+    "RBLX": {
+      "shares": 228.87139107611551,
+      "entry_price": 41.91,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "SPOT": {
+      "shares": 13.78551085369648,
+      "entry_price": 417.83,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "LMT": {
+      "shares": 10.676985646877652,
+      "entry_price": 506.51,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "WFC": {
+      "shares": 68.85245901639344,
+      "entry_price": 75.64,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "NFLX": {
+      "shares": 54.58909589667391,
+      "entry_price": 87.49,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "META": {
+      "shares": 7.427455997900366,
+      "entry_price": 609.63,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "HON": {
+      "shares": 20.645645645645644,
+      "entry_price": 213.12,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "CMG": {
+      "shares": 123.11480455524776,
+      "entry_price": 32.49,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "SCHW": {
+      "shares": 43.33596659519242,
+      "entry_price": 88.61,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "RTX": {
+      "shares": 21.534442614572093,
+      "entry_price": 176.09,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "HD": {
+      "shares": 10.710348086312807,
+      "entry_price": 317.45,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "BAC": {
+      "shares": 66.2638861820308,
+      "entry_price": 51.31,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "AMGN": {
+      "shares": 10.105517033463974,
+      "entry_price": 331.7,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "JPM": {
+      "shares": 10.830850711684871,
+      "entry_price": 302.1,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "MRK": {
+      "shares": 28.15586281199497,
+      "entry_price": 111.38,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "GE": {
+      "shares": 10.44590274272253,
+      "entry_price": 297.15,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "AXP": {
+      "shares": 9.695282093472139,
+      "entry_price": 316.03,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "SHOP": {
+      "shares": 27.171451861244453,
+      "entry_price": 110.41,
+      "entry_time": "2026-05-10T15:56:27.422390"
+    },
+    "REGN": {
+      "shares": 4.151687672229294,
+      "entry_price": 714.89,
+      "entry_time": "2026-05-10T15:56:27.422913"
+    }
+  },
+  "trades": [
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "RBLX",
+      "action": "BUY",
+      "shares": 228.8714,
+      "price": 41.91,
+      "value": 9592.0,
+      "reason": "wt 12.0%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "SPOT",
+      "action": "BUY",
+      "shares": 13.7855,
+      "price": 417.83,
+      "value": 5760.0,
+      "reason": "wt 7.2%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "LMT",
+      "action": "BUY",
+      "shares": 10.677,
+      "price": 506.51,
+      "value": 5408.0,
+      "reason": "wt 6.8%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "WFC",
+      "action": "BUY",
+      "shares": 68.8525,
+      "price": 75.64,
+      "value": 5208.0,
+      "reason": "wt 6.5%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "NFLX",
+      "action": "BUY",
+      "shares": 54.5891,
+      "price": 87.49,
+      "value": 4776.0,
+      "reason": "wt 6.0%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "META",
+      "action": "BUY",
+      "shares": 7.4275,
+      "price": 609.63,
+      "value": 4528.0,
+      "reason": "wt 5.7%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "HON",
+      "action": "BUY",
+      "shares": 20.6456,
+      "price": 213.12,
+      "value": 4400.0,
+      "reason": "wt 5.5%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "CMG",
+      "action": "BUY",
+      "shares": 123.1148,
+      "price": 32.49,
+      "value": 4000.0,
+      "reason": "wt 5.0%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "SCHW",
+      "action": "BUY",
+      "shares": 43.336,
+      "price": 88.61,
+      "value": 3840.0,
+      "reason": "wt 4.8%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "RTX",
+      "action": "BUY",
+      "shares": 21.5344,
+      "price": 176.09,
+      "value": 3792.0,
+      "reason": "wt 4.7%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "HD",
+      "action": "BUY",
+      "shares": 10.7103,
+      "price": 317.45,
+      "value": 3400.0,
+      "reason": "wt 4.2%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "BAC",
+      "action": "BUY",
+      "shares": 66.2639,
+      "price": 51.31,
+      "value": 3400.0,
+      "reason": "wt 4.2%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "AMGN",
+      "action": "BUY",
+      "shares": 10.1055,
+      "price": 331.7,
+      "value": 3352.0,
+      "reason": "wt 4.2%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "JPM",
+      "action": "BUY",
+      "shares": 10.8309,
+      "price": 302.1,
+      "value": 3272.0,
+      "reason": "wt 4.1%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "MRK",
+      "action": "BUY",
+      "shares": 28.1559,
+      "price": 111.38,
+      "value": 3136.0,
+      "reason": "wt 3.9%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "GE",
+      "action": "BUY",
+      "shares": 10.4459,
+      "price": 297.15,
+      "value": 3104.0,
+      "reason": "wt 3.9%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "AXP",
+      "action": "BUY",
+      "shares": 9.6953,
+      "price": 316.03,
+      "value": 3064.0,
+      "reason": "wt 3.8%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "SHOP",
+      "action": "BUY",
+      "shares": 27.1715,
+      "price": 110.41,
+      "value": 3000.0,
+      "reason": "wt 3.8%"
+    },
+    {
+      "time": "15:56:27",
+      "date": "2026-05-10",
+      "ticker": "REGN",
+      "action": "BUY",
+      "shares": 4.1517,
+      "price": 714.89,
+      "value": 2968.0,
+      "reason": "wt 3.7%"
+    }
+  ],
+  "initial_value": 100000.0,
+  "created": "2026-05-10T15:56:01.722012"
+}
